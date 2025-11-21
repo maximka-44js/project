@@ -1,42 +1,90 @@
-version: "3.4"
+version: '3.8'
 
 services:
-  postgresql:
-    image: postgres:14.2-alpine
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: resume_postgres
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password123
-      POSTGRES_DB: fastapi-db
+      POSTGRES_PASSWORD: postgres_dev_password
+      POSTGRES_DB: postgres
     ports:
       - "5432:5432"
     volumes:
-      - ./pgdata:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-databases.sql:/docker-entrypoint-initdb.d/init-databases.sql
+    networks:
+      - resume_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
-  postgresql-test:
-    image: postgres:14.2-alpine
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password123
-      POSTGRES_DB: db-test
-    ports:
-      - "5431:5432"
-    volumes:
-      - ./postgresql-test:/var/lib/postgresql/data
-
+  # Redis Cache
   redis:
-    image: redis:6.2.7
+    image: redis:7-alpine
+    container_name: resume_redis
     ports:
       - "6379:6379"
     volumes:
-      - redis:/data
+      - redis_data:/data
+    networks:
+      - resume_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
+  # RabbitMQ Queue
   rabbitmq:
-    image: rabbitmq:3.9.7
-    ports:
-      - "5672:5672"
+    image: rabbitmq:3-management-alpine
+    container_name: resume_rabbitmq
     environment:
-      - RABBITMQ_DEFAULT_USER=rabbit
-      - RABBITMQ_DEFAULT_PASS=password
+      RABBITMQ_DEFAULT_USER: rabbit_user
+      RABBITMQ_DEFAULT_PASS: rabbit_dev_password
+    ports:
+      - "5672:5672"    # AMQP port
+      - "15672:15672"  # Management UI
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - resume_network
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # MinIO S3-compatible storage
+  minio:
+    image: minio/minio:latest
+    container_name: resume_minio
+    environment:
+      MINIO_ROOT_USER: minio_user
+      MINIO_ROOT_PASSWORD: minio_dev_password
+    ports:
+      - "9000:9000"    # API port
+      - "9001:9001"    # Console port
+    volumes:
+      - minio_data:/data
+    networks:
+      - resume_network
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
 volumes:
-  redis:
+  postgres_data:
+  redis_data:
+  rabbitmq_data:
+  minio_data:
+
+networks:
+  resume_network:
+    driver: bridge
