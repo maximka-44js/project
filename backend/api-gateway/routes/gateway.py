@@ -1,5 +1,5 @@
-from fastapi import APIRouter, Request, Depends, HTTPException
-from middleware.auth import require_auth, optional_auth
+from fastapi import APIRouter, Request, Depends, HTTPException, Response
+from middleware.auth import get_current_user_required, get_current_user_optional
 import httpx
 import logging
 
@@ -9,7 +9,7 @@ router = APIRouter()
 
 # Конфигурация сервисов
 SERVICES = {
-    "auth": "http://localhost:8001",
+    "user": "http://localhost:8001",      # User Service (auth)
     "email": "http://localhost:8002", 
     "resume": "http://localhost:8003",
     "analysis": "http://localhost:8004"
@@ -46,54 +46,97 @@ async def proxy_to_service(service_name: str, path: str, request: Request):
             logger.error(f"Proxy error to {service_name}: {e}")
             raise HTTPException(status_code=503, detail=f"Service {service_name} unavailable")
 
-# Auth Service Routes (публичные)
-@router.api_route("/api/v1/auth/{path:path}", methods=["GET", "POST", "PUT", "DELETE"])
-async def auth_proxy(path: str, request: Request):
-    """Проксирование к Auth Service"""
-    response = await proxy_to_service("auth", f"/{path}", request)
-    return response.json()
+# User Service Routes (регистрация, логин - публичные)
+@router.api_route("/api/v1/auth/register", methods=["POST"])
+async def auth_register_proxy(request: Request):
+    """Проксирование регистрации к User Service"""
+    response = await proxy_to_service("user", "/register", request)
+    return Response(
+        content=response.content,
+        status_code=response.status_code,
+        headers=dict(response.headers)
+    )
+
+@router.api_route("/api/v1/auth/login", methods=["POST"])
+async def auth_login_proxy(request: Request):
+    """Проксирование логина к User Service"""
+    response = await proxy_to_service("user", "/login", request)
+    return Response(
+        content=response.content,
+        status_code=response.status_code,
+        headers=dict(response.headers)
+    )
+
+@router.api_route("/api/v1/auth/refresh", methods=["POST"])
+async def auth_refresh_proxy(request: Request):
+    """Проксирование обновления токена к User Service"""
+    response = await proxy_to_service("user", "/refresh", request)
+    return Response(
+        content=response.content,
+        status_code=response.status_code,
+        headers=dict(response.headers)
+    )
+
+# Защищенный маршрут для получения профиля
+@router.api_route("/api/v1/auth/me", methods=["GET"])
+async def auth_me_proxy(request: Request, user=Depends(get_current_user_required)):
+    """Получение профиля текущего пользователя"""
+    response = await proxy_to_service("user", "/me", request)
+    return Response(
+        content=response.content,
+        status_code=response.status_code,
+        headers=dict(response.headers)
+    )
 
 # Email Service Routes (публичные для подписки)
 @router.api_route("/api/v1/emails/{path:path}", methods=["GET", "POST", "PUT", "DELETE"])
 async def email_proxy(path: str, request: Request):
     """Проксирование к Email Service"""
     response = await proxy_to_service("email", f"/{path}", request)
-    return response.json()
+    return Response(
+        content=response.content,
+        status_code=response.status_code,
+        headers=dict(response.headers)
+    )
 
-# Resume Service Routes (требуют аутентификации для upload)
+# Resume Service Routes
 @router.api_route("/api/v1/resumes/supported-formats", methods=["GET"])
 async def resume_formats_proxy(request: Request):
     """Публичный endpoint - поддерживаемые форматы"""
     response = await proxy_to_service("resume", "/supported-formats", request)
-    return response.json()
+    return Response(
+        content=response.content,
+        status_code=response.status_code,
+        headers=dict(response.headers)
+    )
 
 @router.api_route("/api/v1/resumes/{path:path}", methods=["POST", "PUT", "DELETE"])
-async def resume_proxy_auth(path: str, request: Request, user=Depends(require_auth)):
+async def resume_proxy_auth(path: str, request: Request, user=Depends(get_current_user_required)):
     """Защищенные операции с резюме"""
-    # Добавляем user_id в заголовки для сервиса
-    headers = dict(request.headers)
-    headers["X-User-ID"] = str(user["user_id"])
-    
     response = await proxy_to_service("resume", f"/{path}", request)
-    return response.json()
+    return Response(
+        content=response.content,
+        status_code=response.status_code,
+        headers=dict(response.headers)
+    )
 
 @router.api_route("/api/v1/resumes/{path:path}", methods=["GET"])
-async def resume_proxy_optional(path: str, request: Request, user=Depends(optional_auth)):
+async def resume_proxy_optional(path: str, request: Request, user=Depends(get_current_user_optional)):
     """GET запросы с опциональной аутентификацией"""
-    headers = dict(request.headers)
-    if user:
-        headers["X-User-ID"] = str(user["user_id"])
-    
     response = await proxy_to_service("resume", f"/{path}", request)
-    return response.json()
+    return Response(
+        content=response.content,
+        status_code=response.status_code,
+        headers=dict(response.headers)
+    )
 
 # Analysis Service Routes
 @router.api_route("/api/v1/analysis/{path:path}", methods=["GET", "POST", "PUT", "DELETE"])
-async def analysis_proxy(path: str, request: Request, user=Depends(optional_auth)):
+async def analysis_proxy(path: str, request: Request, user=Depends(get_current_user_optional)):
     """Проксирование к Analysis Service"""
-    headers = dict(request.headers)
-    if user:
-        headers["X-User-ID"] = str(user["user_id"])
-    
     response = await proxy_to_service("analysis", f"/{path}", request)
-    return response.json()
+    return Response(
+        content=response.content,
+        status_code=response.status_code,
+        headers=dict(response.headers)
+    )

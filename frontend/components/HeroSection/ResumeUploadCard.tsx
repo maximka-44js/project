@@ -1,9 +1,11 @@
 'use client'
 
 import { Upload, FileText, DollarSign, Users, Loader2, CheckCircle } from "lucide-react"
+import { useRouter } from "next/navigation"
 import { ResumeUploadCardProps, DEFAULT_SALARY_EXAMPLES } from "./types"
 import { useResumeUpload, useSalaryAnalysis } from "@/lib/hooks/useApi"
 import { useToast } from "@/lib/hooks/useToast"
+import { useAuth } from "@/lib/hooks/useAuth"
 import { validateResumeFile, formatFileSize, formatSalaryRange } from "@/lib/utils/validation"
 import { useState, useEffect } from "react"
 
@@ -13,12 +15,29 @@ export default function ResumeUploadCard({
 }: ResumeUploadCardProps) {
   const [uploadedFile, setUploadedFile] = useState<File | null>(null)
   const [analysisResults, setAnalysisResults] = useState<any>(null)
+  const router = useRouter()
   
   const resumeUpload = useResumeUpload()
   const salaryAnalysis = useSalaryAnalysis()
   const { toast } = useToast()
+  const { isAuthenticated, isLoading: authLoading } = useAuth()
+
+  const handleFileInputClick = (event: React.MouseEvent<HTMLInputElement>) => {
+    if (!authLoading && !isAuthenticated) {
+      event.preventDefault()
+      toast.info("Требуется регистрация", "Для загрузки резюме необходимо создать аккаунт")
+      router.push('/register')
+      return
+    }
+  }
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (!authLoading && !isAuthenticated) {
+      toast.info("Требуется регистрация", "Для загрузки резюме необходимо создать аккаунт")
+      router.push('/register')
+      return
+    }
+
     const file = event.target.files?.[0]
     if (!file) return
 
@@ -117,11 +136,17 @@ export default function ResumeUploadCard({
 
           {/* Upload area или статус */}
           {!uploadedFile ? (
-            <label className="block">
+            <label className="block" onClick={() => {
+              if (!authLoading && !isAuthenticated) {
+                toast.info("Требуется регистрация", "Для загрузки резюме необходимо создать аккаунт")
+                router.push('/register')
+              }
+            }}>
               <input
                 type="file"
                 accept=".pdf,.doc,.docx,.txt"
                 onChange={handleFileChange}
+                onClick={handleFileInputClick}
                 disabled={resumeUpload.loading}
                 className="hidden"
               />
@@ -144,10 +169,18 @@ export default function ResumeUploadCard({
                   </div>
                   <div>
                     <p className="font-medium text-gray-900">
-                      {resumeUpload.loading ? 'Загрузка...' : 'Нажмите для загрузки'}
+                      {resumeUpload.loading 
+                        ? 'Загрузка...' 
+                        : (!authLoading && !isAuthenticated 
+                          ? 'Зарегистрируйтесь для загрузки' 
+                          : 'Нажмите для загрузки')}
                     </p>
                     <p className="text-sm text-gray-500">
-                      {resumeUpload.loading ? 'Пожалуйста, подождите' : 'или перетащите файл сюда'}
+                      {resumeUpload.loading 
+                        ? 'Пожалуйста, подождите' 
+                        : (!authLoading && !isAuthenticated 
+                          ? 'Создайте аккаунт, чтобы начать анализ' 
+                          : 'или перетащите файл сюда')}
                     </p>
                   </div>
                   <p className="text-xs text-gray-400">

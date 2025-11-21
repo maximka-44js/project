@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import FastAPI, Request, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 import httpx
@@ -170,3 +170,30 @@ async def health_check():
 # Подключаем маршруты
 from routes.gateway import router as gateway_router
 app.include_router(gateway_router)
+
+# Тестовые endpoints для проверки авторизации
+from middleware.auth import get_current_user_required, get_current_user_optional
+
+@app.get("/api/v1/test/public")
+async def test_public():
+    """Публичный тестовый endpoint"""
+    return {"message": "This is a public endpoint", "auth_required": False}
+
+@app.get("/api/v1/test/protected")
+async def test_protected(user=Depends(get_current_user_required)):
+    """Защищенный тестовый endpoint"""
+    return {
+        "message": "This is a protected endpoint", 
+        "auth_required": True,
+        "user": user
+    }
+
+@app.get("/api/v1/test/optional")
+async def test_optional(user=Depends(get_current_user_optional)):
+    """Endpoint с опциональной авторизацией"""
+    return {
+        "message": "This endpoint has optional auth",
+        "auth_required": False,
+        "user": user,
+        "authenticated": user is not None
+    }

@@ -142,3 +142,83 @@ export const resumeService = {
     return response.data.data
   }
 }
+
+// Сервис для работы с аутентификацией
+export const authService = {
+  /**
+   * Регистрация нового пользователя
+   * POST /api/v1/auth/register
+   */
+  async register(data: {
+    email: string
+    password: string
+    full_name: string
+  }): Promise<{
+    access_token: string
+    refresh_token: string
+    token_type: string
+    expires_in: number
+    user: {
+      id: number
+      email: string
+      full_name: string
+      is_active: boolean
+      created_at: string
+      updated_at: string
+    }
+  }> {
+    const response = await apiClient.post<{
+      access_token: string
+      refresh_token: string
+      token_type: string
+      expires_in: number
+      user: {
+        id: number
+        email: string
+        full_name: string
+        is_active: boolean
+        created_at: string
+        updated_at: string
+      }
+    }>('/v1/auth/register', data)
+    return response.data
+  },
+
+  /**
+   * Вход в систему
+   * POST /api/v1/auth/login
+   */
+  async login(data: {
+    email: string
+    password: string
+  }): Promise<{
+    access_token: string
+    refresh_token: string
+    token_type: string
+    expires_in: number
+    user: {
+      id: number
+      email: string
+      full_name: string
+      is_active: boolean
+      created_at: string
+      updated_at: string
+    }
+  }> {
+    const response = await apiClient.post<{
+      access_token: string
+      refresh_token: string
+      token_type: string
+      expires_in: number
+      user: {
+        id: number
+        email: string
+        full_name: string
+        is_active: boolean
+        created_at: string
+        updated_at: string
+      }
+    }>('/v1/auth/login', data)
+    return response.data
+  }
+}

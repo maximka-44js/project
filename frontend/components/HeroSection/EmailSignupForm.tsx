@@ -4,9 +4,11 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ChevronRight, Loader2 } from "lucide-react"
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { EmailSignupFormProps } from "./types"
 import { useEmailSubscription } from "@/lib/hooks/useApi"
 import { useToast } from "@/lib/hooks/useToast"
+import { useAuth } from "@/lib/hooks/useAuth"
 
 export default function EmailSignupForm({
   onSubmit,
@@ -16,11 +18,27 @@ export default function EmailSignupForm({
 }: EmailSignupFormProps) {
   const [email, setEmail] = useState("")
   const [isSuccess, setIsSuccess] = useState(false)
+  const router = useRouter()
   
   const emailSubscription = useEmailSubscription()
   const { toast } = useToast()
+  const { isAuthenticated, isLoading: authLoading } = useAuth()
+
+  const handleInputClick = () => {
+    if (!authLoading && !isAuthenticated) {
+      toast.info("Требуется регистрация", "Для использования этой функции необходимо создать аккаунт")
+      router.push('/register')
+      return
+    }
+  }
 
   const handleSubmit = async () => {
+    if (!authLoading && !isAuthenticated) {
+      toast.info("Требуется регистрация", "Для использования этой функции необходимо создать аккаунт")
+      router.push('/register')
+      return
+    }
+
     if (!email.trim()) {
       toast.error("Ошибка", "Введите email адрес")
       return
@@ -89,6 +107,8 @@ export default function EmailSignupForm({
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           onKeyPress={handleKeyPress}
+          onClick={handleInputClick}
+          onFocus={handleInputClick}
           disabled={emailSubscription.loading}
           className="flex-1 h-12 text-base"
         />
