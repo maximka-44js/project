@@ -42,9 +42,41 @@ services:
     env_file:
       - ./services/resume-service/.env
 
+  api-gateway:
+    build:
+      context: ./api-gateway
+      dockerfile: Dockerfile
+    container_name: api-gateway
+    ports:
+      - "8000:8000"
+    networks:
+      - api_gateway_network
+    restart: unless-stopped
+    volumes:
+      - ./api-gateway:/app
+      - ./shared:/app/shared
+  
+  # user-service:
+  #   build:
+  #     context: .
+  #     dockerfile: ./services/user-service/Dockerfile
+  #   container_name: user-service
+  #   ports:
+  #     - "8001:8001"
+  #   networks:
+  #     - auth_api_network
+  #   restart: unless-stopped
+  #   volumes:
+  #     - ./services/user-service:/app
+  #     - ./shared:/app/shared
+    
 volumes:
   postgres_dev_data:
 
 networks:
   resume_dev_network:
+    driver: bridge
+  api_gateway_network:
+    driver: bridge
+  auth_api_network:
     driver: bridge
