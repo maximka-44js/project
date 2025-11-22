@@ -1,33 +1,46 @@
-ALLOWED_EXT = {"pdf", "doc", "docx", "txt"}
-ALLOWED_MIME = {
-    "application/pdf",
-    "application/msword",
-    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    "text/plain",
-}
-
 import os
-MAX_SIZE_MB = int(os.getenv("MAX_RESUME_SIZE_MB", "10"))
+from typing import List
 
-def validate_extension(filename: str):
-    if "." not in filename:
-        raise ValueError("No extension")
-    ext = filename.rsplit(".", 1)[-1].lower()
-    if ext not in ALLOWED_EXT:
-        raise ValueError(f"Unsupported extension: {ext}")
-    return ext
+ALLOWED_FORMATS: List[str] = ["pdf", "doc", "docx", "txt"]
 
-def validate_size(upload_file):
-    upload_file.file.seek(0, 2)
-    size = upload_file.file.tell()
-    upload_file.file.seek(0)
-    if size == 0:
-        raise ValueError("Empty file")
-    if size > MAX_SIZE_MB * 1024 * 1024:
-        raise ValueError(f"File too large (> {MAX_SIZE_MB}MB)")
-    return size
 
-def validate_mime(mime: str | None):
-    if mime and mime not in ALLOWED_MIME:
-        raise ValueError(f"Unsupported MIME: {mime}")
-    return mime
+def get_extension(filename: str) -> str:
+	return filename.rsplit('.', 1)[-1].lower() if '.' in filename else ''
+
+
+def validate_extension(filename: str) -> str:
+	ext = get_extension(filename)
+	if ext not in ALLOWED_FORMATS:
+		raise ValueError(f"Unsupported file format: {ext}")
+	return ext
+
+
+def parse_file(path: str, ext: str) -> str | None:
+	"""Return extracted text or None if unsupported/failed."""
+	if not os.path.exists(path):
+		return None
+
+	try:
+		if ext == "txt":
+			with open(path, 'r', encoding='utf-8', errors='ignore') as f:
+				return f.read()
+		if ext == "pdf":
+			from pypdf import PdfReader
+			text_parts = []
+			reader = PdfReader(path)
+			for page in reader.pages:
+				page_text = page.extract_text() or ""
+				text_parts.append(page_text)
+			return "\n".join(text_parts).strip() or None
+		if ext == "docx":
+			try:
+				import docx2txt
+				extracted = docx2txt.process(path)
+				return extracted.strip() if extracted else None
+			except Exception:
+				from docx import Document
+				doc = Document(path)
+				return "\n".join(p.text for p in doc.paragraphs).strip() or None
+		return None
+	except Exception:
+		return None

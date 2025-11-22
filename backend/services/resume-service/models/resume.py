@@ -1,33 +1,26 @@
 import uuid
-import enum
-from sqlalchemy import Column, String, DateTime, Text, Enum, Integer
+from datetime import datetime
+from sqlalchemy import Column, String, DateTime, Text, ForeignKey, Integer
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.sql import func
 from shared.database import Base
 
-class ResumeStatus(str, enum.Enum):
-    uploaded = "uploaded"
-    parsed = "parsed"
-    queued = "queued"
-    analyzing = "analyzing"
-    done = "done"
-    error = "error"
-
-class Resume(Base):
+class ResumeFile(Base):
     __tablename__ = "resumes"
 
+    uid = Column(Integer, nullable=True, index=True)
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id = Column(UUID(as_uuid=True), nullable=True)  # No FK - users table in different DB
-
     original_filename = Column(String(255), nullable=False)
     stored_path = Column(String(512), nullable=False)
+    file_type = Column(String(16), nullable=False)
+    uploaded_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    text_content = Column(Text, nullable=True)
 
-    mime_type = Column(String(120), nullable=True)
-    size_bytes = Column(Integer, nullable=True)
-
-    content_text = Column(Text, nullable=True)
-    status = Column(Enum(ResumeStatus), default=ResumeStatus.uploaded, nullable=False)
-    error_message = Column(String(512), nullable=True)
-
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    def to_dict(self):
+        return {
+            "id": str(self.id),
+            "uid": self.uid,
+            "original_filename": self.original_filename,
+            "file_type": self.file_type,
+            "uploaded_at": self.uploaded_at.isoformat(),
+            "has_text": self.text_content is not None,
+        }

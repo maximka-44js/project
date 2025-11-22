@@ -99,6 +99,7 @@ app = FastAPI(
 
 # Database manager
 db_manager = DatabaseManager("auth")
+db_manager.create_tables()  
 security = HTTPBearer(auto_error=False)
 
 def get_db():

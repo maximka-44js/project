@@ -28,6 +28,7 @@ services:
     environment:
       POSTGRES_HOST: postgres
       POSTGRES_PORT: 5432
+      STORAGE_DIR: /app/storage/uploads
     ports:
       - "8003:8003"
     depends_on:
@@ -39,6 +40,7 @@ services:
     volumes:
       - ./services/resume-service:/app
       - ./shared:/app/shared
+      - resume_storage:/app/storage
     env_file:
       - ./services/resume-service/.env
 
@@ -71,6 +73,7 @@ services:
         condition: service_healthy
     networks:
       - auth_api_network
+      - resume_dev_network  # добавлено для доступа к контейнеру postgres
     restart: unless-stopped
     volumes:
       - ./services/user-service:/app
@@ -103,6 +106,7 @@ services:
     
 volumes:
   postgres_dev_data:
+  resume_storage:
 
 networks:
   resume_dev_network:

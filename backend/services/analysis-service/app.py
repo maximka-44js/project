@@ -39,7 +39,6 @@ def create_app() -> FastAPI:
         except Exception as e:
             log.error(f"Error creating tables: {e}")
     
-    # Убрали /api/v1 префикс
     app.include_router(analysis_router, prefix="/analysis")
     
     @app.get("/health")
