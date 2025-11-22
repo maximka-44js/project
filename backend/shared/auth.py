@@ -129,3 +129,67 @@ class AuthScope:
     READ = "read"
     WRITE = "write"
     ADMIN = "admin"
+
+
+# FastAPI dependencies для аутентификации
+from fastapi import Depends, HTTPException, status
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+
+security = HTTPBearer(auto_error=False)
+
+
+def get_current_user_optional(
+    credentials: HTTPAuthorizationCredentials | None = Depends(security),
+):
+    """
+    Опциональная аутентификация - возвращает user или None.
+    Используется в эндпоинтах где аутентификация желательна но не обязательна.
+    """
+    if not credentials:
+        return None
+    
+    token = credentials.credentials
+    payload = AuthUtils.verify_token(token, expected_type="access")
+    
+    if not payload:
+        return None
+    
+    # Возвращаем минимальный объект user (можно расширить)
+    class User:
+        def __init__(self, user_id: str, email: str = None):
+            self.id = user_id
+            self.email = email
+    
+    return User(user_id=payload.get("sub"), email=payload.get("email"))
+
+
+def get_current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+):
+    """
+    Обязательная аутентификация - требует валидный токен.
+    Возвращает user или выбрасывает 401.
+    """
+    if not credentials:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    token = credentials.credentials
+    payload = AuthUtils.verify_token(token, expected_type="access")
+    
+    if not payload:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    class User:
+        def __init__(self, user_id: str, email: str = None):
+            self.id = user_id
+            self.email = email
+    
+    return User(user_id=payload.get("sub"), email=payload.get("email"))
