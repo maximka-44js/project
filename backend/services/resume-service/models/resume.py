@@ -1,6 +1,6 @@
 import uuid
 import enum
-from sqlalchemy import Column, String, DateTime, Text, Enum, ForeignKey, Integer
+from sqlalchemy import Column, String, DateTime, Text, Enum, Integer
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
 from shared.database import Base
@@ -17,7 +17,7 @@ class Resume(Base):
     __tablename__ = "resumes"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
+    user_id = Column(UUID(as_uuid=True), nullable=True)  # No FK - users table in different DB
 
     original_filename = Column(String(255), nullable=False)
     stored_path = Column(String(512), nullable=False)

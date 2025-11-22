@@ -23,9 +23,13 @@ def _init_s3():
         return None
     try:
         import boto3
+        # Ensure endpoint_url has https:// prefix
+        endpoint_url = S3_ENDPOINT
+        if endpoint_url and not endpoint_url.startswith(("http://", "https://")):
+            endpoint_url = f"https://{endpoint_url}"
         _s3_client = boto3.client(
             "s3",
-            endpoint_url=S3_ENDPOINT or None,
+            endpoint_url=endpoint_url or None,
             region_name=S3_REGION,
             aws_access_key_id=S3_ACCESS_KEY,
             aws_secret_access_key=S3_SECRET_KEY,

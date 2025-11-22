@@ -4,9 +4,10 @@ sqlalchemy
 psycopg2-binary
 python-multipart
 python-dotenv
-pdfminer.six
+pypdf
 python-docx
 docx2txt
 python-jose[cryptography]
 passlib[bcrypt]
 boto3
+pika

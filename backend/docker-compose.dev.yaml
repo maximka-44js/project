@@ -1,0 +1,50 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: resume_postgres_dev
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres_dev_password
+      POSTGRES_DB: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+      - ./init-databases.sql:/docker-entrypoint-initdb.d/init-databases.sql
+    networks:
+      - resume_dev_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  resume-service:
+    build:
+      context: .
+      dockerfile: ./services/resume-service/Dockerfile
+    container_name: resume_service_dev
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+    ports:
+      - "8003:8003"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - resume_dev_network
+    restart: unless-stopped
+    volumes:
+      - ./services/resume-service:/app
+      - ./shared:/app/shared
+    env_file:
+      - ./services/resume-service/.env
+
+volumes:
+  postgres_dev_data:
+
+networks:
+  resume_dev_network:
+    driver: bridge
