@@ -5,7 +5,7 @@ from typing import Optional, Dict, Any
 import os
 
 # JWT настройки для dev режима
-JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "dev_jwt_secret_key_change_in_production") 
+JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "dev_secret_key_123") 
 JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
 JWT_ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("JWT_ACCESS_TOKEN_EXPIRE_MINUTES", "15"))
 JWT_REFRESH_TOKEN_EXPIRE_DAYS = int(os.getenv("JWT_REFRESH_TOKEN_EXPIRE_DAYS", "7"))
@@ -41,7 +41,7 @@ class AuthUtils:
     def verify_token(token: str, expected_type: str = "access") -> Optional[Dict[str, Any]]:
         """Проверка токена"""
         try:
-            payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
+            payload = jwt.decode(token, JWT_ALGORITHM, algorithms=[JWT_ALGORITHM])
             
             # Проверяем тип токена
             token_type = payload.get("type")
@@ -56,7 +56,7 @@ class AuthUtils:
             return payload
             
         except JWTError:
-            return None
+            return JWTError
     
     @staticmethod
     def hash_password(password: str) -> str:
@@ -81,54 +81,8 @@ class AuthUtils:
             "expires_in": JWT_ACCESS_TOKEN_EXPIRE_MINUTES * 60
         }
 
-class OAuth2Config:
-    """Конфигурация OAuth2 провайдеров"""
-    
-    # Google OAuth2
-    GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "")
-    GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET", "")
-    GOOGLE_REDIRECT_URI = os.getenv("GOOGLE_REDIRECT_URI", "http://localhost:8000/api/v1/auth/google/callback")
-    
-    # GitHub OAuth2  
-    GITHUB_CLIENT_ID = os.getenv("GITHUB_CLIENT_ID", "")
-    GITHUB_CLIENT_SECRET = os.getenv("GITHUB_CLIENT_SECRET", "")
-    GITHUB_REDIRECT_URI = os.getenv("GITHUB_REDIRECT_URI", "http://localhost:8000/api/v1/auth/github/callback")
-    
-    @classmethod
-    def get_google_oauth_url(cls) -> str:
-        """URL для Google OAuth2"""
-        base_url = "https://accounts.google.com/o/oauth2/v2/auth"
-        params = [
-            f"client_id={cls.GOOGLE_CLIENT_ID}",
-            f"redirect_uri={cls.GOOGLE_REDIRECT_URI}",
-            "response_type=code",
-            "scope=openid email profile",
-            "access_type=offline"
-        ]
-        return f"{base_url}?{'&'.join(params)}"
-    
-    @classmethod
-    def get_github_oauth_url(cls) -> str:
-        """URL для GitHub OAuth2"""
-        base_url = "https://github.com/login/oauth/authorize"
-        params = [
-            f"client_id={cls.GITHUB_CLIENT_ID}",
-            f"redirect_uri={cls.GITHUB_REDIRECT_URI}",
-            "scope=user:email"
-        ]
-        return f"{base_url}?{'&'.join(params)}"
 
-# Константы для разных типов пользователей
-class UserRole:
-    """Роли пользователей"""
-    USER = "user"
-    ADMIN = "admin"
-    
-class AuthScope:
-    """Области видимости"""
-    READ = "read"
-    WRITE = "write"
-    ADMIN = "admin"
+
 
 
 # FastAPI dependencies для аутентификации
@@ -179,7 +133,6 @@ def get_current_user(
     
     token = credentials.credentials
     payload = AuthUtils.verify_token(token, expected_type="access")
-    
     if not payload:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -193,3 +146,5 @@ def get_current_user(
             self.email = email
     
     return User(user_id=payload.get("sub"), email=payload.get("email"))
+
+

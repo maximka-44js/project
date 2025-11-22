@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from typing import Optional
 
 from shared.database import DatabaseManager
-from shared.auth import get_current_user_optional
+from shared.auth import get_current_user
 from models.resume import Resume, ResumeStatus
 from utils.validators import validate_extension, validate_size, validate_mime, ALLOWED_EXT
 from storage.storage_adapter import save_file
@@ -71,7 +71,7 @@ def list_resumes(db: Session = Depends(get_db)):
 async def upload_resume(
     resume: UploadFile,
     email: Optional[str] = Form(default=None),
-    user = Depends(get_current_user_optional),
+    user = Depends(get_current_user),
 ):
     log.info(f"got file from user: {user}")
     log.info(f"Upload start: filename={resume.filename} size_header={resume.size if hasattr(resume,'size') else 'n/a'} content_type={resume.content_type}")
@@ -84,8 +84,9 @@ async def upload_resume(
         raise HTTPException(status_code=400, detail=str(e))
 
     try:
-        # Загрузка файла на S3
-        object_name = f"uploads/{resume.filename}"
+        # Загрузка файла на S3 в папку с user_id
+        user_id = getattr(user, "id", "anonymous")
+        object_name = f"uploads/{user_id}/{resume.filename}"
         s3.upload_fileobj(resume.file, BUCKET_NAME, object_name)
         log.info(f"File uploaded to S3: {object_name}")
     except NoCredentialsError:
