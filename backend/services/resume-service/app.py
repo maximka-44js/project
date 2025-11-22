@@ -41,7 +41,7 @@ def create_app() -> FastAPI:
         except Exception as e:
             log.error(f"Error creating tables: {e}")
 
-    app.include_router(resumes_router, prefix="/api/v1/resumes")
+    app.include_router(resumes_router, prefix="/resumes")
     return app
 
 app = create_app()

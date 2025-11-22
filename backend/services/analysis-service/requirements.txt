@@ -1,1 +1,12 @@
+fastapi
+uvicorn[standard]
+sqlalchemy
+psycopg2-binary
+python-multipart
+python-dotenv
+python-jose[cryptography]
+passlib[bcrypt]
 openai
+agents
+pydantic
+pydantic-settings

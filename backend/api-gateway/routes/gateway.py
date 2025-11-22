@@ -47,7 +47,7 @@ async def proxy_to_service(service_name: str, path: str, request: Request):
             raise HTTPException(status_code=503, detail=f"Service {service_name} unavailable")
 
 # User Service Routes (регистрация, логин - публичные)
-@router.api_route("/api/v1/auth/register", methods=["POST"])
+@router.api_route("/auth/register", methods=["POST"])
 async def auth_register_proxy(request: Request):
     """Проксирование регистрации к User Service"""
     response = await proxy_to_service("user", "/register", request)
@@ -57,7 +57,7 @@ async def auth_register_proxy(request: Request):
         headers=dict(response.headers)
     )
 
-@router.api_route("/api/v1/auth/login", methods=["POST"])
+@router.api_route("/auth/login", methods=["POST"])
 async def auth_login_proxy(request: Request):
     """Проксирование логина к User Service"""
     response = await proxy_to_service("user", "/login", request)
@@ -67,7 +67,7 @@ async def auth_login_proxy(request: Request):
         headers=dict(response.headers)
     )
 
-@router.api_route("/api/v1/auth/refresh", methods=["POST"])
+@router.api_route("/auth/refresh", methods=["POST"])
 async def auth_refresh_proxy(request: Request):
     """Проксирование обновления токена к User Service"""
     response = await proxy_to_service("user", "/refresh", request)
@@ -78,7 +78,7 @@ async def auth_refresh_proxy(request: Request):
     )
 
 # Защищенный маршрут для получения профиля
-@router.api_route("/api/v1/auth/me", methods=["GET"])
+@router.api_route("/auth/me", methods=["GET"])
 async def auth_me_proxy(request: Request, user=Depends(get_current_user_required)):
     """Получение профиля текущего пользователя"""
     response = await proxy_to_service("user", "/me", request)
@@ -89,7 +89,7 @@ async def auth_me_proxy(request: Request, user=Depends(get_current_user_required
     )
 
 # Email Service Routes (публичные для подписки)
-@router.api_route("/api/v1/emails/{path:path}", methods=["GET", "POST", "PUT", "DELETE"])
+@router.api_route("/emails/{path:path}", methods=["GET", "POST", "PUT", "DELETE"])
 async def email_proxy(path: str, request: Request):
     """Проксирование к Email Service"""
     response = await proxy_to_service("email", f"/{path}", request)
@@ -100,7 +100,7 @@ async def email_proxy(path: str, request: Request):
     )
 
 # Resume Service Routes
-@router.api_route("/api/v1/resumes/supported-formats", methods=["GET"])
+@router.api_route("/resumes/supported-formats", methods=["GET"])
 async def resume_formats_proxy(request: Request):
     """Публичный endpoint - поддерживаемые форматы"""
     response = await proxy_to_service("resume", "/supported-formats", request)
@@ -110,7 +110,7 @@ async def resume_formats_proxy(request: Request):
         headers=dict(response.headers)
     )
 
-@router.api_route("/api/v1/resumes/{path:path}", methods=["POST", "PUT", "DELETE"])
+@router.api_route("/resumes/{path:path}", methods=["POST", "PUT", "DELETE"])
 async def resume_proxy_auth(path: str, request: Request, user=Depends(get_current_user_required)):
     """Защищенные операции с резюме"""
     response = await proxy_to_service("resume", f"/{path}", request)
@@ -120,7 +120,7 @@ async def resume_proxy_auth(path: str, request: Request, user=Depends(get_curren
         headers=dict(response.headers)
     )
 
-@router.api_route("/api/v1/resumes/{path:path}", methods=["GET"])
+@router.api_route("/resumes/{path:path}", methods=["GET"])
 async def resume_proxy_optional(path: str, request: Request, user=Depends(get_current_user_optional)):
     """GET запросы с опциональной аутентификацией"""
     response = await proxy_to_service("resume", f"/{path}", request)
@@ -131,7 +131,7 @@ async def resume_proxy_optional(path: str, request: Request, user=Depends(get_cu
     )
 
 # Analysis Service Routes
-@router.api_route("/api/v1/analysis/{path:path}", methods=["GET", "POST", "PUT", "DELETE"])
+@router.api_route("/analysis/{path:path}", methods=["GET", "POST", "PUT", "DELETE"])
 async def analysis_proxy(path: str, request: Request, user=Depends(get_current_user_optional)):
     """Проксирование к Analysis Service"""
     response = await proxy_to_service("analysis", f"/{path}", request)

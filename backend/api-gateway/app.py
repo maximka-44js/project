@@ -36,22 +36,10 @@ app.add_middleware(
 
 # Конфигурация микросервисов (dev)
 SERVICES_CONFIG = {
-    "auth": {
-        "url": "http://localhost:8001",
-        "prefix": "/api/v1/auth"
-    },
-    "email": {
-        "url": "http://localhost:8002", 
-        "prefix": "/api/v1/emails"
-    },
-    "resume": {
-        "url": "http://localhost:8003",
-        "prefix": "/api/v1/resumes"
-    },
-    "analysis": {
-        "url": "http://localhost:8004",
-        "prefix": "/api/v1/analysis"
-    }
+    "auth": {"url": "http://localhost:8001", "prefix": "/auth"},
+    "email": {"url": "http://localhost:8002", "prefix": "/emails"},
+    "resume": {"url": "http://localhost:8003", "prefix": "/resumes"},
+    "analysis": {"url": "http://localhost:8004", "prefix": "/analysis"}
 }
 
 # Rate limiting storage (простая in-memory для dev)
@@ -130,7 +118,7 @@ async def log_requests(request: Request, call_next):
     start_time = time.time()
     
     # Rate limiting для polling запросов
-    if "/api/v1/analysis/" in str(request.url) and request.method == "GET":
+    if "/analysis/" in str(request.url) and request.method == "GET":
         client_ip = request.client.host if request.client else "unknown"
         if not check_rate_limit(client_ip, limit=6, window=60):
             raise HTTPException(
@@ -175,12 +163,12 @@ app.include_router(gateway_router)
 from middleware.auth import get_current_user_required, get_current_user_optional
 import uvicorn
 
-@app.get("/api/v1/test/public")
+@app.get("/test/public")
 async def test_public():
     """Публичный тестовый endpoint"""
     return {"message": "This is a public endpoint", "auth_required": False}
 
-@app.get("/api/v1/test/protected")
+@app.get("/test/protected")
 async def test_protected(user=Depends(get_current_user_required)):
     """Защищенный тестовый endpoint"""
     return {
@@ -189,7 +177,7 @@ async def test_protected(user=Depends(get_current_user_required)):
         "user": user
     }
 
-@app.get("/api/v1/test/optional")
+@app.get("/test/optional")
 async def test_optional(user=Depends(get_current_user_optional)):
     """Endpoint с опциональной авторизацией"""
     return {

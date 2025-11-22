@@ -2,7 +2,7 @@ import requests
 
 # Конфигурация
 AUTH_URL = "http://127.0.0.1:8001/login"  # URL микросервиса авторизации
-UPLOAD_URL = "http://localhost:8002/api/v1/resumes/upload"  # URL сервиса загрузки
+UPLOAD_URL = "http://localhost:8003/resumes/upload"  # Обновлено: убран префикс /api/v1 и корректный порт
 CREDENTIALS = {
     "email": "user@exap.com",  # Данные для входа
     "password": "password123"

@@ -8,19 +8,19 @@ RUN apt-get update && apt-get install -y \
     libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Копирование requirements и установка зависимостей
-COPY requirements.txt .
+# Копирование requirements user-service и shared
+COPY services/user-service/requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Копирование shared модулей
-COPY ../../shared ./shared
+# Установка shared requirements если есть
+COPY shared/requirements.txt /tmp/shared_requirements.txt
+RUN pip install --no-cache-dir -r /tmp/shared_requirements.txt || true
 
-# Копирование кода приложения
-COPY . .
+# Копирование кода приложения и shared
+COPY services/user-service /app
+COPY shared /app/shared
 
-# Создание пользователя для безопасности
-RUN useradd -r -s /bin/false userservice
-USER userservice
+# USER userservice  # Отключено для live-монтирования
 
 # Экспорт порта
 EXPOSE 8001

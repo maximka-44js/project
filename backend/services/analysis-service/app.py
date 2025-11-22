@@ -22,7 +22,8 @@ def get_db():
         db.close()
 
 def create_app() -> FastAPI:
-    app = FastAPI(title="Analysis Service")
+    app = FastAPI(title="Analysis Service", version="1.0.0")
+    
     app.add_middleware(
         CORSMiddleware,
         allow_origins=["*"],
@@ -37,9 +38,14 @@ def create_app() -> FastAPI:
             log.info("Tables ensured")
         except Exception as e:
             log.error(f"Error creating tables: {e}")
-        
-
-        app.include_router(analysis_router)
-        return app
     
+    # Убрали /api/v1 префикс
+    app.include_router(analysis_router, prefix="/analysis")
+    
+    @app.get("/health")
+    def health():
+        return {"status": "ok", "service": SERVICE_NAME}
+    
+    return app
+
 app = create_app()
