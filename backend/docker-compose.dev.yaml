@@ -79,29 +79,29 @@ services:
       - ./services/user-service:/app
       - ./shared:/app/shared
   
-  analysis-service:
-    build:
-      context: .
-      dockerfile: ./services/analysis-service/Dockerfile
-    container_name: analysis_service_dev
-    environment:
-      POSTGRES_HOST: postgres
-      POSTGRES_PORT: 5432
-      AUTO_CREATE_TABLES: "1"
-    ports:
-      - "8004:8004"
-    depends_on:
-      postgres:
-        condition: service_healthy
-    networks:
-      - analysis_dev_network
-      - resume_dev_network
-    restart: unless-stopped
-    volumes:
-      - ./services/analysis-service:/app
-      - ./shared:/app/shared
-    env_file:
-      - ./services/analysis-service/.env
+  # analysis-service:
+  #   build:
+  #     context: .
+  #     dockerfile: ./services/analysis-service/Dockerfile
+  #   container_name: analysis_service_dev
+  #   environment:
+  #     POSTGRES_HOST: postgres
+  #     POSTGRES_PORT: 5432
+  #     AUTO_CREATE_TABLES: "1"
+  #   ports:
+  #     - "8004:8004"
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #   networks:
+  #     - analysis_dev_network
+  #     - resume_dev_network
+  #   restart: unless-stopped
+  #   volumes:
+  #     - ./services/analysis-service:/app
+  #     - ./shared:/app/shared
+  #   env_file:
+  #     - ./services/analysis-service/.env
 
     
 volumes:
