@@ -56,19 +56,25 @@ services:
       - ./api-gateway:/app
       - ./shared:/app/shared
   
-  # user-service:
-  #   build:
-  #     context: .
-  #     dockerfile: ./services/user-service/Dockerfile
-  #   container_name: user-service
-  #   ports:
-  #     - "8001:8001"
-  #   networks:
-  #     - auth_api_network
-  #   restart: unless-stopped
-  #   volumes:
-  #     - ./services/user-service:/app
-  #     - ./shared:/app/shared
+  user-service:
+    build:
+      context: .
+      dockerfile: ./services/user-service/Dockerfile
+    container_name: user-service
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+    ports:
+      - "8001:8001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - auth_api_network
+    restart: unless-stopped
+    volumes:
+      - ./services/user-service:/app
+      - ./shared:/app/shared
     
 volumes:
   postgres_dev_data:
