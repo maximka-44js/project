@@ -6,7 +6,7 @@ from shared.database import DatabaseManager
 from shared.auth import get_current_user_optional
 from models.resume import Resume, ResumeStatus
 from utils.validators import validate_extension, validate_size, validate_mime, ALLOWED_EXT
-from storage.file_handler import save_file
+from storage.storage_adapter import save_file
 from storage.parser import extract_text as parse_text
 from utils.publisher import publish_resume
 
@@ -41,6 +41,7 @@ async def upload_resume(
 
     stored_path, _ = save_file(resume)
 
+    # Парсим на основе сохранённого пути (локально) или пропускаем если S3 (текст уже в памяти)
     text, parse_error = parse_text(stored_path, ext, resume.content_type)
     status = ResumeStatus.parsed if text else ResumeStatus.uploaded
     if parse_error and not text:
