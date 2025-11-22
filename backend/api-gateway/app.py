@@ -173,6 +173,7 @@ app.include_router(gateway_router)
 
 # Тестовые endpoints для проверки авторизации
 from middleware.auth import get_current_user_required, get_current_user_optional
+import uvicorn
 
 @app.get("/api/v1/test/public")
 async def test_public():
@@ -197,3 +198,12 @@ async def test_optional(user=Depends(get_current_user_optional)):
         "user": user,
         "authenticated": user is not None
     }
+
+
+if __name__ == "__main__":
+    uvicorn.run(
+        "app:app",
+        host="0.0.0.0",
+        port=8000,
+        reload=True
+    )

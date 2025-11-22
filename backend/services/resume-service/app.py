@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import logging
 from routes.resumes import router as resumes_router
 from shared.database import Base, DatabaseManager
+import uvicorn
 
 SERVICE_NAME = "resumes"
 AUTO_CREATE_TABLES = os.getenv("AUTO_CREATE_TABLES", "1") == "1"
@@ -44,3 +45,7 @@ def create_app() -> FastAPI:
     return app
 
 app = create_app()
+
+
+if __name__ == "__main__":
+    uvicorn.run("app:app", host="0.0.0.0", port=8002, reload=True)
