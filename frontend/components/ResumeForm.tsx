@@ -5,6 +5,11 @@ import { analyzeResumeFromForm } from '@/utils/api/services';
 import { FormAnalysisRequest, SCHEDULE_OPTIONS, EXPERIENCE_OPTIONS, ScheduleType, ExperienceType } from '@/utils/api/types';
 import { AnalysisResponse } from '@/utils/api/types';
 
+// Тип для хранения ошибок валидации
+type FormErrors = {
+  [K in keyof FormAnalysisRequest]?: string;
+};
+
 interface ResumeFormProps {
   onAnalysisComplete: (result: AnalysisResponse) => void;
   onError: (error: string) => void;
@@ -20,14 +25,14 @@ export default function ResumeForm({ onAnalysisComplete, onError }: ResumeFormPr
     location: '',
     schedule: 'FIVE_ON_TWO_OFF' as ScheduleType,
     experience: 'noExperience' as ExperienceType,
-    work_hours: 40,
+    work_hours: 8,
     skills_text: '',
   });
 
-  const [errors, setErrors] = useState<Partial<FormAnalysisRequest>>({});
+  const [errors, setErrors] = useState<FormErrors>({});
 
   const validateForm = (): boolean => {
-    const newErrors: Partial<FormAnalysisRequest> = {};
+    const newErrors: FormErrors = {};
 
     if (!formData.vacancy_nm.trim()) {
       newErrors.vacancy_nm = 'Укажите желаемую должность';
@@ -41,8 +46,8 @@ export default function ResumeForm({ onAnalysisComplete, onError }: ResumeFormPr
       newErrors.skills_text = 'Опишите ваши навыки и компетенции';
     }
 
-    if (formData.work_hours < 1 || formData.work_hours > 168) {
-      newErrors.work_hours = 'Рабочие часы должны быть от 1 до 168 в неделю';
+    if (formData.work_hours < 1 || formData.work_hours > 24) {
+      newErrors.work_hours = 'Рабочие часы должны быть от 1 до 24 в день';
     }
 
     setErrors(newErrors);
@@ -141,13 +146,13 @@ export default function ResumeForm({ onAnalysisComplete, onError }: ResumeFormPr
           {/* Work Hours */}
           <div>
             <label htmlFor="work_hours" className="block text-sm font-medium text-gray-700 mb-2">
-              Рабочих часов в неделю
+              Рабочих часов в день
             </label>
             <input
               type="number"
               id="work_hours"
               min="1"
-              max="168"
+              max="24"
               value={formData.work_hours}
               onChange={(e) => handleInputChange('work_hours', parseInt(e.target.value) || 0)}
               className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${

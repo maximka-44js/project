@@ -9,8 +9,8 @@ import {
 } from './types';
 
 // Базовые URL для микросервисов
-const UPLOAD_SERVICE_URL = 'http://localhost:8003';
-const ANALYSIS_SERVICE_URL = 'http://localhost:8004';
+const UPLOAD_SERVICE_URL = process.env.NEXT_PUBLIC_UPLOAD_SERVICE_URL || 'http://localhost:8003';
+const ANALYSIS_SERVICE_URL = process.env.NEXT_PUBLIC_ANALYSIS_SERVICE_URL || 'http://localhost:8004';
 
 // Настройка axios клиентов
 const uploadClient = axios.create({

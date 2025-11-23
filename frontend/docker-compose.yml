@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_UPLOAD_SERVICE_URL=http://upload-service:8003
+      - NEXT_PUBLIC_ANALYSIS_SERVICE_URL=http://analysis-service:8004
+    depends_on:
+      - upload-service
+      - analysis-service
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  # Заглушки для ваших микросервисов (замените на реальные)
+  upload-service:
+    # image: your-upload-service:latest
+    image: nginx:alpine  # Временная заглушка
+    ports:
+      - "8003:80"
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  analysis-service:
+    # image: your-analysis-service:latest
+    image: nginx:alpine  # Временная заглушка
+    ports:
+      - "8004:80"
+    networks:
+      - app-network
+    restart: unless-stopped
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  # Добавьте volumes для персистентности данных если нужно
+  app-data:

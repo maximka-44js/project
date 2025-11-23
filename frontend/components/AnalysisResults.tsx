@@ -126,7 +126,7 @@ export default function AnalysisResults({ result, onNewAnalysis }: AnalysisResul
             {extracted_data.work_hours > 0 && (
               <div>
                 <span className="text-sm text-gray-500">Рабочих часов:</span>
-                <p className="font-medium text-gray-800">{extracted_data.work_hours} ч/неделя</p>
+                <p className="font-medium text-gray-800">{extracted_data.work_hours} ч/день</p>
               </div>
             )}
             <div>
