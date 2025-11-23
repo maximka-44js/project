@@ -127,7 +127,7 @@ services:
       POSTGRES_PORT: 5432
       REDIS_HOST: redis
       REDIS_PORT: 6379
-      OPENAI_API_KEY: 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
+     #OPENAI_API_KEY: 11211
       LANG: en_US.UTF-8
       LANGUAGE: en_US:en
       LC_ALL: en_US.UTF-8
