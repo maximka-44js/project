@@ -2,7 +2,8 @@ import axios from 'axios';
 import { 
   UploadResponse, 
   FileInfo, 
-  AnalysisRequest, 
+  AnalysisRequest,
+  FormAnalysisRequest, 
   AnalysisStartResponse, 
   AnalysisResponse 
 } from './types';
@@ -60,6 +61,29 @@ export const getFileInfo = async (uploadId: string): Promise<FileInfo> => {
 export const startAnalysis = async (text: string): Promise<AnalysisStartResponse> => {
   const request: AnalysisRequest = { text };
   const response = await analysisClient.post<AnalysisStartResponse>('/analysis/from_raw_text', request);
+  return response.data;
+};
+
+/**
+ * Запускает анализ данных резюме через форму
+ * @param formData - данные формы для анализа
+ * @returns Promise с информацией о начале анализа
+ */
+export const startFormAnalysis = async (formData: FormAnalysisRequest): Promise<AnalysisStartResponse> => {
+  // Преобразуем данные в FormData для отправки как form-data
+  const form = new URLSearchParams();
+  form.append('vacancy_nm', formData.vacancy_nm);
+  form.append('location', formData.location);
+  form.append('schedule', formData.schedule);
+  form.append('experience', formData.experience);
+  form.append('work_hours', formData.work_hours.toString());
+  form.append('skills_text', formData.skills_text);
+
+  const response = await analysisClient.post<AnalysisStartResponse>('/analysis/from_form_data', form, {
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+  });
   return response.data;
 };
 
@@ -185,6 +209,66 @@ export const analyzeResume = async (
       }
     }
     
+    throw error;
+  }
+};
+
+/**
+ * Анализ резюме через форму: отправка данных и получение результата
+ * @param formData - данные формы
+ * @param onProgress - callback для отслеживания прогресса
+ * @returns Promise с результатом анализа
+ */
+export const analyzeResumeFromForm = async (
+  formData: FormAnalysisRequest,
+  onProgress?: (progress: number, status: string) => void
+): Promise<AnalysisResponse> => {
+  try {
+    // Шаг 1: Запуск анализа
+    onProgress?.(20, 'Отправка данных для анализа...');
+    const analysisStart = await startFormAnalysis(formData);
+
+    if (!analysisStart.success) {
+      throw new Error(analysisStart.message || 'Ошибка запуска анализа');
+    }
+
+    // Шаг 2: Ожидание результата анализа (проверяем каждые 3 секунды)
+    onProgress?.(50, 'Анализ данных в процессе...');
+    
+    let attempts = 0;
+    const maxAttempts = 20; // Максимум 1 минута ожидания
+    
+    while (attempts < maxAttempts) {
+      await new Promise(resolve => setTimeout(resolve, 3000)); // Ждем 3 секунды
+      
+      const analysisResult = await checkAnalysisStatus(analysisStart.task_id);
+      
+      // Если есть ошибка, выбрасываем исключение
+      if (analysisResult.error) {
+        throw new Error(analysisResult.error);
+      }
+      
+      // Если анализ завершен успешно
+      if (analysisResult.success && analysisResult.result) {
+        onProgress?.(100, 'Анализ завершен!');
+        return analysisResult;
+      }
+      
+      // Если статус показывает, что задача еще выполняется
+      if (analysisResult.status === 'pending' || analysisResult.status === 'processing') {
+        onProgress?.(50 + (attempts * 2), 'Анализ данных в процессе...');
+        attempts++;
+        continue;
+      }
+      
+      // Если статус неизвестен, но нет ошибки, продолжаем ждать
+      attempts++;
+    }
+    
+    throw new Error('Превышено время ожидания анализа');
+    
+  } catch (error) {
+    console.error('Ошибка при анализе данных формы:', error);
     throw error;
   }
 };
