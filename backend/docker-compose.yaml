@@ -13,6 +13,7 @@ services:
       - ./init-databases.sql:/docker-entrypoint-initdb.d/init-databases.sql
     networks:
       - resume_dev_network
+      - analysis_dev_network
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
@@ -98,7 +99,7 @@ services:
       AUTO_CREATE_TABLES: "1"
       REDIS_HOST: redis
       REDIS_PORT: 6379
-        OPENAI_API_KEY=sk-proj-DWyhk4dxqjnkQHDIKkS-jA89VYau_rKHTCWxhUvgRJQ_LcJr2Nrv3YBruvXnuKWKnS5rG89T3BlbkFJPd2ziNo1uiOlyNHh54RGRLdXOvB0hvHmD9qy-XYpm5a3SXnA5ErmSbnPNui8zz314CGuhXnYYA
+      OPENAI_API_KEY: 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
     ports:
       - "8004:8004"
     depends_on:
@@ -126,6 +127,11 @@ services:
       POSTGRES_PORT: 5432
       REDIS_HOST: redis
       REDIS_PORT: 6379
+      OPENAI_API_KEY: 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
+      LANG: en_US.UTF-8
+      LANGUAGE: en_US:en
+      LC_ALL: en_US.UTF-8
+      PYTHONIOENCODING: utf-8
     depends_on:
       postgres:
         condition: service_healthy

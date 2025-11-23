@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, Depends, status
 from sqlalchemy.orm import Session
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 import logging
@@ -9,6 +9,7 @@ import uuid
 from shared.database import DatabaseManager
 from shared.auth import get_current_user_optional
 from models.analysis import Analysis, AnalysisStatus
+from tasks.analysis_tasks import process_raw_text_task
 
 
 _db_manager = DatabaseManager("analysis")
@@ -62,6 +63,49 @@ class AnalysisResponseData(BaseModel):
 class AnalysisResponse(BaseModel):
     data: AnalysisResponseData
     success: bool
+
+
+class RawTextRequest(BaseModel):
+    text: str = Field(
+        ...,
+        description="Текст резюме для анализа",
+        min_length=10,
+        max_length=10000
+    )
+
+
+class SalaryPrediction(BaseModel):
+    lowest_salary: float
+    highest_salary: float
+    currency: str
+
+
+class ExtractedData(BaseModel):
+    vacancy_nm: str
+    location: str
+    schedule: str
+    experience: str
+    work_hours: float
+    skills_text: str
+
+
+class RawTextAnalysisResult(BaseModel):
+    extracted_data: ExtractedData
+    profession_id: int
+    salary_prediction: SalaryPrediction
+
+
+class RawTextResponse(BaseModel):
+    task_id: str
+    success: bool
+    message: str
+
+
+class TaskResultResponse(BaseModel):
+    success: bool
+    result: Optional[RawTextAnalysisResult] = None
+    error: Optional[str] = None
+    status: str  # pending, success, failure
 
 
 @router.post("/start", response_model=AnalysisResponse)
@@ -211,4 +255,88 @@ def analysis_webhook(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to update analysis"
+        )
+
+
+@router.post("/from_raw_text", response_model=RawTextResponse)
+def analyze_raw_text(
+    request: RawTextRequest,
+    user=Depends(get_current_user_optional),
+):
+    """
+    Анализ сырого текста резюме.
+    
+    Принимает текст резюме, извлекает структурированные данные,
+    определяет profession_id и возвращает зарплатную вилку.
+    
+    Процесс выполняется асинхронно через Celery.
+    """
+    log.info(f"Starting raw text analysis")
+    
+    try:
+        # Запускаем задачу Celery
+        task = process_raw_text_task.delay(request.text)
+        
+        log.info(f"Raw text analysis task started: {task.id}")
+        
+        return RawTextResponse(
+            task_id=task.id,
+            success=True,
+            message="Анализ текста запущен. Используйте task_id для получения результата."
+        )
+        
+    except Exception as e:
+        log.error(f"Error starting raw text analysis: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to start text analysis"
+        )
+
+
+@router.get("/task/{task_id}", response_model=TaskResultResponse)
+def get_task_result(task_id: str):
+    """
+    Получение результата задачи по task_id.
+    
+    Используется для получения результата анализа сырого текста.
+    """
+    try:
+        # Получаем статус задачи из Celery
+        from celery.result import AsyncResult
+        from celery_app import celery_app
+        
+        task_result = AsyncResult(task_id, app=celery_app)
+        
+        if task_result.ready():
+            if task_result.successful():
+                result_data = task_result.result
+                if result_data.get("success"):
+                    return TaskResultResponse(
+                        success=True,
+                        result=RawTextAnalysisResult(**result_data),
+                        status="success"
+                    )
+                else:
+                    return TaskResultResponse(
+                        success=False,
+                        error=result_data.get("error"),
+                        status="failure"
+                    )
+            else:
+                return TaskResultResponse(
+                    success=False,
+                    error=str(task_result.result),
+                    status="failure"
+                )
+        else:
+            return TaskResultResponse(
+                success=True,
+                status="pending"
+            )
+            
+    except Exception as e:
+        log.error(f"Error getting task result {task_id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to get task result"
         )

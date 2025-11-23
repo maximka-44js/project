@@ -128,6 +128,3 @@ Email: ivanov@example.com
 
 
 
-result = Runner.run_sync(extr_agent, text)
-
-print(type(result.final_output))

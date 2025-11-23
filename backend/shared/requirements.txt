@@ -11,7 +11,7 @@ python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
 
 # API & Validation
-pydantic==2.5.0
+pydantic==2.12.4
 pydantic-settings==2.1.0
 email-validator==2.1.0
 

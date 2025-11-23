@@ -31,6 +31,11 @@ celery_app.conf.update(
     timezone='UTC',
     enable_utc=True,
     
+    # Настройки для правильной работы с UTF-8
+    task_track_started=True,
+    task_always_eager=False,
+    broker_connection_retry_on_startup=True,
+    
     # Настройки очередей для анализа резюме
     task_routes={
         'tasks.analysis_tasks.*': {'queue': 'analysis'},

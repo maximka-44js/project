@@ -7,9 +7,12 @@ python-dotenv
 python-jose[cryptography]
 passlib[bcrypt]
 openai
-agents
-pydantic
-pydantic-settings
+openai-agents
+pydantic==2.12.4
+pydantic-settings==2.1.0
 redis
 celery
 kombu
+scikit-learn
+pandas
+numpy

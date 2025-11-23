@@ -1,4 +1,5 @@
 def get_salary_prediction(
+    model_path: str,
     vacancy_id: int,
     location: str,
     schedule: str,
