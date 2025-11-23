@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 import logging
 from routes.analysis import router as analysis_router
+from routes.celery_routes import router as celery_router
 from shared.database import Base, DatabaseManager
 
 SERVICE_NAME = "analysis"
@@ -40,6 +41,7 @@ def create_app() -> FastAPI:
             log.error(f"Error creating tables: {e}")
     
     app.include_router(analysis_router, prefix="/analysis")
+    app.include_router(celery_router, prefix="/tasks")
     
     @app.get("/health")
     def health():
@@ -48,3 +50,4 @@ def create_app() -> FastAPI:
     return app
 
 app = create_app()
+

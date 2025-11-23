@@ -10,3 +10,6 @@ openai
 agents
 pydantic
 pydantic-settings
+redis
+celery
+kombu
