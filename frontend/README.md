@@ -1,239 +1,36 @@
-# Salary Analysis Frontend
-
-Фронтенд приложение для анализа зарплат на основе резюме с полной интеграцией с бэкендом API.
-
-## 🚀 Функциональность
-
-- ✅ Подписка на email для получения результатов анализа
-- ✅ Загрузка резюме с валидацией файлов
-- ✅ Реальное время отслеживания статуса анализа
-- ✅ Отображение результатов анализа зарплат
-- ✅ Уведомления для пользователя (Toast)
-- ✅ Обработка ошибок и состояний загрузки
-- ✅ Адаптивный дизайн с shadcn/ui и Tailwind CSS
-
-## 🛠 Технологии
-
-- **Next.js 15** - React фреймворк
-- **TypeScript** - Типизация
-- **Tailwind CSS** - Стилизация
-- **shadcn/ui** - UI компоненты
-- **Axios** - HTTP клиент
-- **Lucide React** - Иконки
-
-## 📡 API Интеграция
-
-### Базовая конфигурация
-- **Базовый URL**: `http://localhost:8000/api`
-- **Таймаут**: 30 секунд (для загрузки файлов)
-- **Автоматическая обработка ошибок**
-- **Логирование в development режиме**
-
-### Эндпоинты API
-
-#### 1. Подписка на Email
-**POST** `/api/v1/emails/subscribe`
-
-```typescript
-// Request
-{
-  email: string,
-  source?: string, // 'hero_section'
-  metadata?: {
-    timestamp: string,
-    user_agent: string
-  }
-}
-
-// Response
-{
-  data: {
-    id: string,
-    email: string,
-    subscribed: boolean,
-    created_at: string
-  },
-  message?: string,
-  success: boolean
-}
-```
-
-#### 2. Проверка статуса подписки
-**GET** `/api/v1/emails/status/{email}`
-
-```typescript
-// Response
-{
-  data: {
-    id: string,
-    email: string,
-    subscribed: boolean,
-    created_at: string
-  }
-}
-```
-
-#### 3. Загрузка резюме
-**POST** `/api/v1/resumes/upload`
-
-```typescript
-// Request (FormData)
-{
-  resume: File, // PDF, DOC, DOCX, TXT
-  email?: string
-}
-
-// Response
-{
-  data: {
-    upload_id: string,
-    file_name: string,
-    file_size: number,
-    status: 'uploaded' | 'processing' | 'completed' | 'error',
-    analysis_id?: string
-  }
-}
-```
-
-#### 4. Получение результатов анализа
-**GET** `/api/v1/analysis/{analysis_id}`
-
-```typescript
-// Response
-{
-  data: {
-    analysis_id: string,
-    status: 'processing' | 'completed' | 'error',
-    results?: {
-      position_levels: Array<{
-        level: string, // 'Junior Developer', 'Middle Developer', etc.
-        salary_min: number,
-        salary_max: number,
-        currency: string, // '₽', '$', '€'
-        confidence: number // 0.0 - 1.0
-      }>,
-      market_data: {
-        total_vacancies_analyzed: number,
-        data_freshness_days: number,
-        location: string
-      },
-      recommendations?: string[]
-    },
-    error_message?: string
-  }
-}
-```
-
-#### 5. Запуск анализа (опционально)
-**POST** `/api/v1/analysis/start`
-
-```typescript
-// Request
-{
-  upload_id: string,
-  email?: string
-}
-
-// Response
-{
-  data: {
-    analysis_id: string,
-    status: 'processing' | 'completed' | 'error'
-  }
-}
-```
-
-#### 6. Поддерживаемые форматы
-**GET** `/api/v1/resumes/supported-formats`
-
-```typescript
-// Response
-{
-  data: string[] // ['.pdf', '.doc', '.docx', '.txt']
-}
-```
-
-## 🔄 Workflow приложения
-
-1. **Подписка на email** - пользователь вводит email для получения результатов
-2. **Загрузка резюме** - валидация файла и загрузка на сервер
-3. **Анализ** - автоматический запуск анализа или ручной старт
-4. **Поллинг результатов** - каждые 10 секунд проверяем готовность результатов
-5. **Отображение результатов** - показ реальных данных вместо примеров
-
-## 🛡️ Обработка ошибок
-
-- **400** - Некорректные данные запроса
-- **401** - Необходима авторизация
-- **403** - Доступ запрещен
-- **404** - Ресурс не найден
-- **413** - Файл слишком большой (> 10MB)
-- **429** - Слишком много запросов
-- **500** - Внутренняя ошибка сервера
-- **503** - Сервис временно недоступен
-
-## 📝 Валидация
-
-### Email
-- Проверка формата email
-- Максимальная длина: 254 символа
-- Обязательное поле
-
-### Файлы резюме
-- **Форматы**: PDF, DOC, DOCX, TXT
-- **Максимальный размер**: 10MB
-- **MIME типы**: `application/pdf`, `application/msword`, `application/vnd.openxmlformats-officedocument.wordprocessingml.document`, `text/plain`
-
-## 🎨 UI/UX Особенности
-
-- **Состояния загрузки** - спиннеры и индикаторы прогресса
-- **Toast уведомления** - информирование о результатах операций
-- **Адаптивный дизайн** - работает на всех устройствах
-- **Анимации** - плавные переходы состояний
-- **Обратная связь** - понятные сообщения об ошибках
-
-## 🚦 Переменные окружения
-
-```bash
-# API Configuration
-NEXT_PUBLIC_API_URL=http://localhost:8000/api
-
-# Development
-NODE_ENV=development
-```
-
-## 📂 Структура проекта
-
-```
-frontend/
-├── app/                          # Next.js App Router
-├── components/
-│   ├── HeroSection/             # Главная секция
-│   │   ├── HeroSection.tsx      # Основной компонент
-│   │   ├── FeatureCard.tsx      # Карточки возможностей
-│   │   ├── StatsSection.tsx     # Секция статистики
-│   │   ├── EmailSignupForm.tsx  # Форма подписки
-│   │   ├── ResumeUploadCard.tsx # Загрузка резюме
-│   │   ├── BackgroundDecorations.tsx # Декорации
-│   │   ├── types.ts             # TypeScript типы
-│   │   └── index.ts             # Экспорты
-│   ├── providers/               # React провайдеры
-│   └── ui/                      # shadcn/ui компоненты
-├── lib/
-│   ├── api/                     # API клиент и сервисы
-│   ├── hooks/                   # Кастомные хуки
-│   └── utils/                   # Утилиты и валидация
-└── public/                      # Статические файлы
-```
+This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
 ## Getting Started
 
+First, run the development server:
+
 ```bash
 npm run dev
-# или
+# or
+yarn dev
+# or
 pnpm dev
+# or
+bun dev
 ```
 
-Откройте [http://localhost:3000](http://localhost:3000) в браузере.
+Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-Все готово для продакшена! 🎉
+You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+
+This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+
+## Learn More
+
+To learn more about Next.js, take a look at the following resources:
+
+- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
+- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+
+You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+
+## Deploy on Vercel
+
+The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+
+Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
