@@ -4,7 +4,7 @@ from fastapi import APIRouter, UploadFile, File, HTTPException
 from fastapi import Depends
 from sqlalchemy.orm import Session
 from shared.database import DatabaseManager
-from models.resume import ResumeFile
+from models.resume import ResumeFile, ResumeForm
 from utils.validators import validate_extension, parse_file, ALLOWED_FORMATS
 from shared.auth import get_current_user_optional, get_current_user
 
@@ -111,3 +111,36 @@ def get_user_resumes(
 		"count": len(rows),
 		"success": True,
 	}
+
+@router.post("/form/upload")
+async def upload_resume_form(
+	form: dict,
+	db: Session = Depends(get_db),
+	user=Depends(get_current_user_optional),
+):
+	required = ["vacancy_id", "location", "schedule", "experience", "work_hours", "skills_text"]
+	missing = [f for f in required if f not in form]
+	if missing:
+		raise HTTPException(status_code=400, detail=f"Missing fields: {', '.join(missing)}")
+
+	try:
+		vacancy_id = int(form["vacancy_id"])
+		work_hours = float(form["work_hours"])
+	except ValueError:
+		raise HTTPException(status_code=400, detail="Invalid numeric values")
+
+	resume_form_row = ResumeForm(
+		uid=int(user.id) if user else None,
+		vacancy_id=vacancy_id,
+		location=form["location"],
+		schedule=form["schedule"],
+		experience=form["experience"],
+		work_hours=work_hours,
+		skills_text=form["skills_text"],
+	)
+
+	db.add(resume_form_row)
+	db.commit()
+	db.refresh(resume_form_row)
+
+	return {"data": resume_form_row.as_dict(), "success": True}

@@ -1,9 +1,28 @@
 import uuid
 from datetime import datetime
-from sqlalchemy import Column, String, DateTime, Text, ForeignKey, Integer
+from sqlalchemy import Column, String, DateTime, Text, ForeignKey, Integer, Float
 from sqlalchemy.dialects.postgresql import UUID
 from shared.database import Base
 from sqlalchemy.inspection import inspect
+
+class ResumeForm(Base):
+    __tablename__ = "resume_forms"
+
+    uid = Column(Integer, nullable=True, index=True)
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    vacancy_id = Column(Integer, nullable=False)
+    location = Column(String(255), nullable=False)
+    schedule = Column(String(128), nullable=False)
+    experience = Column(String(128), nullable=False)
+    work_hours = Column(Float, nullable=False)
+    skills_text = Column(Text, nullable=False)
+
+    def as_dict(self):
+        data = {c.key: getattr(self, c.key) for c in inspect(self).mapper.column_attrs}
+        data["id"] = str(data["id"])
+        return data
+    
+
 
 class ResumeFile(Base):
     __tablename__ = "resumes"
