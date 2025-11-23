@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends, status
+from fastapi import APIRouter, HTTPException, Depends, status, Form
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, EmailStr, Field
 from typing import Optional, List, Dict, Any
@@ -9,7 +9,7 @@ import uuid
 from shared.database import DatabaseManager
 from shared.auth import get_current_user_optional
 from models.analysis import Analysis, AnalysisStatus
-from tasks.analysis_tasks import process_raw_text_task
+from tasks.analysis_tasks import process_raw_text_task, process_form_data_task
 
 
 _db_manager = DatabaseManager("analysis")
@@ -74,6 +74,15 @@ class RawTextRequest(BaseModel):
     )
 
 
+class FormDataRequest(BaseModel):
+    vacancy_nm: str = Field(..., description="Название вакансии")
+    location: str = Field(..., description="Местоположение")
+    schedule: str = Field(..., description="График работы")
+    experience: str = Field(..., description="Опыт работы")
+    work_hours: float = Field(..., description="Часы работы")
+    skills_text: str = Field(..., description="Навыки и компетенции")
+
+
 class SalaryPrediction(BaseModel):
     lowest_salary: float
     highest_salary: float
@@ -91,7 +100,6 @@ class ExtractedData(BaseModel):
 
 class RawTextAnalysisResult(BaseModel):
     extracted_data: ExtractedData
-    profession_id: int
     salary_prediction: SalaryPrediction
     recommendations: str
 
@@ -291,6 +299,56 @@ def analyze_raw_text(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to start text analysis"
+        )
+
+
+@router.post("/from_form_data", response_model=RawTextResponse)
+def analyze_form_data(
+    vacancy_nm: str = Form(..., description="Название вакансии"),
+    location: str = Form(..., description="Местоположение"),
+    schedule: str = Form(..., description="График работы"),
+    experience: str = Form(..., description="Опыт работы"),
+    work_hours: float = Form(..., description="Часы работы"),
+    skills_text: str = Form(..., description="Навыки и компетенции"),
+    user=Depends(get_current_user_optional),
+):
+    """
+    Анализ данных резюме из формы.
+    
+    Принимает структурированные данные резюме через form-data,
+    определяет profession_id, возвращает зарплатную вилку и рекомендации от OpenAI.
+    
+    Процесс выполняется асинхронно через Celery.
+    """
+    log.info(f"Starting form data analysis")
+    
+    try:
+        # Формируем словарь с данными формы
+        form_data = {
+            "vacancy_nm": vacancy_nm,
+            "location": location,
+            "schedule": schedule,
+            "experience": experience,
+            "work_hours": work_hours,
+            "skills_text": skills_text
+        }
+        
+        # Запускаем задачу Celery
+        task = process_form_data_task.delay(form_data)
+        
+        log.info(f"Form data analysis task started: {task.id}")
+        
+        return RawTextResponse(
+            task_id=task.id,
+            success=True,
+            message="Анализ данных формы запущен. Используйте task_id для получения результата."
+        )
+        
+    except Exception as e:
+        log.error(f"Error starting form data analysis: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to start form data analysis"
         )
 
 

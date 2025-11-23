@@ -222,7 +222,6 @@ def process_raw_text_task(self, text: str):
                 "work_hours": result.work_hours,
                 "skills_text": result.skills_text
             },
-            "profession_id": profession_id,
             "salary_prediction": {
                 "lowest_salary": lowest_salary,
                 "highest_salary": highest_salary,
@@ -258,6 +257,160 @@ def process_raw_text_task(self, text: str):
         if "experimental_allow_partial" in error_msg:
             log.error("DETECTED: experimental_allow_partial error - likely pydantic version issue")
             log.error("This error typically occurs in the data extraction/validation step")
+        
+        return {
+            "success": False,
+            "error": error_msg,
+            "error_type": type(e).__name__,
+            "traceback": tb_str
+        }
+
+
+@celery_app.task(bind=True)
+def process_form_data_task(self, form_data: dict):
+    """
+    Задача для обработки данных формы резюме.
+    
+    Выполняет следующие шаги:
+    1. Получает profession_id по названию вакансии
+    2. Вызывает get_salary_prediction для получения зарплатной вилки
+    3. Получает рекомендации от OpenAI на основе структурированных данных
+    
+    Args:
+        form_data (dict): Структурированные данные формы резюме
+        
+    Returns:
+        dict: Результат с зарплатной вилкой и рекомендациями
+    """
+    try:
+        log.info(f"Starting form data processing task {self.request.id}")
+        log.info(f"Form data keys: {list(form_data.keys())}")
+        
+        # Шаг 1: Получаем profession_id по названию вакансии
+        log.info("=" * 50)
+        log.info("STEP 1: Getting profession_id")
+        log.info("=" * 50)
+        
+        try:
+            vacancy_nm = form_data.get('vacancy_nm')
+            log.info(f"Calling get_profession_id with vacancy_nm: '{vacancy_nm}'")
+            log.info(f"Using data_path: {DATA_PATH}")
+            log.info(f"Using model_path: {MODEL_PATH}")
+            log.info(f"Data file exists: {os.path.exists(DATA_PATH)}")
+            log.info(f"Model file exists: {os.path.exists(MODEL_PATH)}")
+            profession_id = get_profession_id(data_path=DATA_PATH, model_path=MODEL_PATH, profession_name=vacancy_nm)
+            log.info(f"STEP 1 SUCCESS: Profession ID: {profession_id}")
+        except Exception as e:
+            log.error(f"STEP 1 FAILED: Error in get_profession_id")
+            log.error(f"Error type: {type(e).__name__}")
+            log.error(f"Error message: {str(e)}")
+            log.error(f"Full error details:", exc_info=True)
+            raise
+        
+        # Шаг 2: Получаем зарплатную вилку
+        log.info("=" * 50)
+        log.info("STEP 2: Getting salary prediction")
+        log.info("=" * 50)
+        
+        try:
+            log.info(f"Calling get_salary_prediction with parameters:")
+            log.info(f"  vacancy_id: {profession_id}")
+            log.info(f"  location: {form_data.get('location')}")
+            log.info(f"  schedule: {form_data.get('schedule')}")
+            log.info(f"  experience: {form_data.get('experience')}")
+            log.info(f"  work_hours: {form_data.get('work_hours')}")
+            log.info(f"  skills_text: {form_data.get('skills_text', '')[:100]}...")
+            
+            lowest_salary, highest_salary = get_salary_prediction(
+                model_path=PREDICT_MODEL_PATH,
+                vacancy_id=str(profession_id),
+                location=form_data.get('location'),
+                schedule=form_data.get('schedule'),
+                experience=form_data.get('experience'),
+                work_hours=form_data.get('work_hours'),
+                skills_text=form_data.get('skills_text')
+            )
+            
+            log.info(f"STEP 2 SUCCESS: Salary range: {lowest_salary} - {highest_salary}")
+            
+        except Exception as e:
+            log.error(f"STEP 2 FAILED: Error in get_salary_prediction")
+            log.error(f"Error type: {type(e).__name__}")
+            log.error(f"Error message: {str(e)}")
+            log.error(f"Full error details:", exc_info=True)
+            raise
+        
+        # Шаг 3: Получаем рекомендации по улучшению резюме от OpenAI
+        log.info("=" * 50)
+        log.info("STEP 3: Getting resume recommendations from OpenAI")
+        log.info("=" * 50)
+        
+        try:
+            # Формируем текстовое представление резюме для OpenAI
+            resume_text = f"""
+Вакансия: {form_data.get('vacancy_nm')}
+Местоположение: {form_data.get('location')}
+График работы: {form_data.get('schedule')}
+Опыт работы: {form_data.get('experience')}
+Часы работы: {form_data.get('work_hours')}
+Навыки и компетенции: {form_data.get('skills_text')}
+"""
+            
+            log.info("Calling get_resume_recommendations...")
+            recommendations = get_resume_recommendations(resume_text, form_data)
+            log.info(f"STEP 3 SUCCESS: Got recommendations, length: {len(recommendations)} characters")
+            
+        except Exception as e:
+            log.error(f"STEP 3 FAILED: Error in get_resume_recommendations")
+            log.error(f"Error type: {type(e).__name__}")
+            log.error(f"Error message: {str(e)}")
+            log.error(f"Full error details:", exc_info=True)
+            # Не прерываем выполнение задачи, если не удалось получить рекомендации
+            recommendations = "Не удалось получить рекомендации по улучшению резюме."
+        
+        # Формируем результат
+        log.info("=" * 50)
+        log.info("FINAL STEP: Forming result")
+        log.info("=" * 50)
+        
+        task_result = {
+            "success": True,
+            "extracted_data": {
+                "vacancy_nm": form_data.get('vacancy_nm'),
+                "location": form_data.get('location'),
+                "schedule": form_data.get('schedule'),
+                "experience": form_data.get('experience'),
+                "work_hours": form_data.get('work_hours'),
+                "skills_text": form_data.get('skills_text')
+            },
+            "salary_prediction": {
+                "lowest_salary": lowest_salary,
+                "highest_salary": highest_salary,
+                "currency": "RUB"
+            },
+            "recommendations": recommendations
+        }
+        
+        log.info(f"Task {self.request.id} completed successfully")
+        log.info(f"Final result keys: {list(task_result.keys())}")
+        return task_result
+        
+    except Exception as e:
+        error_msg = str(e)
+        if isinstance(error_msg, bytes):
+            error_msg = error_msg.decode('utf-8', errors='replace')
+        
+        log.error("=" * 60)
+        log.error("FORM DATA TASK FAILED WITH CRITICAL ERROR")
+        log.error("=" * 60)
+        log.error(f"Task ID: {self.request.id}")
+        log.error(f"Error type: {type(e).__name__}")
+        log.error(f"Error message: {error_msg}")
+        log.error("Full traceback:", exc_info=True)
+        
+        import traceback
+        tb_str = traceback.format_exc()
+        log.error(f"Detailed traceback:\n{tb_str}")
         
         return {
             "success": False,
