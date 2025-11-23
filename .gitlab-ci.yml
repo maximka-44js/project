@@ -1,0 +1,69 @@
+stages:
+  - restart
+  - deploy
+
+variables:
+  DOCKER_TLS_CERTDIR: "/certs"
+  DOCKER_HOST: "tcp://docker:2376"
+  DOCKER_TLS_VERIFY: "1"
+  DOCKER_CERT_PATH: "$DOCKER_TLS_CERTDIR/client"
+  DOCKER_DRIVER: overlay2
+
+image: docker:20.10.16
+
+services:
+  - docker:20.10.16-dind
+
+before_script:
+  - for try in {1..10}; do sleep 0.5; docker info && break ; done
+  - echo "$YC_REGISTRY_KEY" | docker login -u "$YC_REGISTRY_USER" --password-stdin $CI_REGISTRY
+
+restart_vm:
+  stage: restart
+  when: manual
+  script:
+    - docker run --rm -e YC_INSTANCE_ID="$YC_INSTANCE_ID" -e YC_SA_KEY="$YC_SA_KEY" -e YC_SA_ID="$YC_SA_ID" -e YC_SA_PARENT_ID="$YC_SA_PARENT_ID" "$CI_REGISTRY/cloud-tools/init:v2.1"
+
+.ssh:
+  image: alpine:3.19
+  variables:
+    DOCKER_COMPOSE_CMD: "docker compose"
+  before_script: []
+  script:
+    - apk add --no-cache openssh-client rsync
+    - export SSH_HOST="${ENV_SSH_HOST}"
+    - export SSH_USER="${ENV_SSH_USER}"
+    - export SSH_ADDRESS="${SSH_USER}@${SSH_HOST}"
+    - export DEPLOY_DIR="${ENV_DEPLOY_DIR:-/home/${SSH_USER}/project}"
+    - '[ -n "$SSH_HOST" ] && [ -n "$SSH_USER" ] && [ -n "$ENV_PRIVATE_KEY_BASE64" ] || { echo "Missing SSH configuration variables"; exit 1; }'
+    - mkdir -p ~/.ssh && chmod 700 ~/.ssh
+    - echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config && chmod 600 ~/.ssh/config
+    - echo "$ENV_PRIVATE_KEY_BASE64" | base64 -d > ~/.ssh/id_rsa && chmod 400 ~/.ssh/id_rsa
+    - eval $(ssh-agent -s)
+    - ssh-add ~/.ssh/id_rsa
+    - ssh-keyscan -H "$SSH_HOST" >> ~/.ssh/known_hosts
+
+deploy_backend:
+  extends: .ssh
+  stage: deploy
+  script:
+    - !reference [.ssh, script]
+    - ssh "$SSH_ADDRESS" "mkdir -p \"$DEPLOY_DIR/backend\""
+    - rsync -az --delete backend/ "$SSH_ADDRESS:$DEPLOY_DIR/backend/"
+    - ssh "$SSH_ADDRESS" "cd \"$DEPLOY_DIR/backend\" && $DOCKER_COMPOSE_CMD down --remove-orphans || true"
+    - ssh "$SSH_ADDRESS" "cd \"$DEPLOY_DIR/backend\" && $DOCKER_COMPOSE_CMD up -d --build"
+  rules:
+    - if: $CI_COMMIT_REF_NAME == "master"
+    - if: $CI_COMMIT_REF_NAME == $CI_MERGE_REQUEST_SOURCE_BRANCH_NAME
+
+.rules-merge-or-master:
+  rules:
+    - if: $CI_COMMIT_REF_NAME == $CI_MERGE_REQUEST_SOURCE_BRANCH_NAME
+    - if: $CI_COMMIT_REF_NAME == "master"
+.rules-merge:
+  rules:
+    - if: $CI_COMMIT_REF_NAME == $CI_MERGE_REQUEST_SOURCE_BRANCH_NAME
+.rules-master:
+  rules:
+    - if: $CI_COMMIT_REF_NAME == "master"
+
