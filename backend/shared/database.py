@@ -1,9 +1,13 @@
-from sqlalchemy import create_engine, MetaData
+import logging
+import os
+import time
+from contextlib import contextmanager
+from typing import Generator
+
+from sqlalchemy import MetaData, create_engine
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
-from contextlib import contextmanager
-import os
-from typing import Generator
 
 # Базовые настройки для разных БД в dev режиме
 DATABASE_CONFIGS = {
@@ -39,6 +43,8 @@ DATABASE_CONFIGS = {
 
 # Базовый класс для моделей
 Base = declarative_base()
+
+logger = logging.getLogger(__name__)
 
 class DatabaseManager:
     """Менеджер подключений к базам данных"""
@@ -90,9 +96,40 @@ class DatabaseManager:
         finally:
             db.close()
     
-    def create_tables(self):
-        """Создание таблиц"""
-        Base.metadata.create_all(bind=self.engine)
+    def create_tables(self, retries: int | None = None, retry_interval: float | None = None):
+        """Создание таблиц с ожиданием готовности БД"""
+        max_retries = retries if retries is not None else int(os.getenv("DB_INIT_RETRIES", "10"))
+        interval = retry_interval if retry_interval is not None else float(os.getenv("DB_INIT_RETRY_INTERVAL", "3"))
+
+        attempt = 0
+        while True:
+            try:
+                Base.metadata.create_all(bind=self.engine)
+                if attempt:
+                    logger.info(
+                        "Tables for service %s created after %d retries", self.service_name, attempt
+                    )
+                return
+            except OperationalError as exc:
+                attempt += 1
+                if attempt > max_retries:
+                    logger.error(
+                        "Unable to create tables for service %s after %d attempts: %s",
+                        self.service_name,
+                        attempt - 1,
+                        exc,
+                    )
+                    raise
+
+                logger.warning(
+                    "create_tables attempt %d/%d failed for service %s: %s. Retrying in %.1f seconds",
+                    attempt,
+                    max_retries,
+                    self.service_name,
+                    exc,
+                    interval,
+                )
+                time.sleep(interval)
     
     def drop_tables(self):
         """Удаление таблиц (только для dev!)"""

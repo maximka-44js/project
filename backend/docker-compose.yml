@@ -79,6 +79,31 @@ services:
       timeout: 10s
       retries: 3
 
+  resume-service:
+    build:
+      context: .
+      dockerfile: services/resume-service/Dockerfile
+    container_name: resume_service
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      AUTO_CREATE_TABLES: 1
+      FEATURE_PARSE: 1
+      RESUME_STORAGE_PATH: /app/storage/resumes
+    ports:
+      - "8003:8003"
+    volumes:
+      - ./services/resume-service/storage/resumes:/app/storage/resumes
+    depends_on:
+      - postgres
+    networks:
+      - resume_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8003/docs" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
 volumes:
   postgres_data:
   redis_data:

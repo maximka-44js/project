@@ -39,24 +39,19 @@ class AuthUtils:
     
     @staticmethod
     def verify_token(token: str, expected_type: str = "access") -> Optional[Dict[str, Any]]:
-        """Проверка токена"""
         try:
-            payload = jwt.decode(token, JWT_ALGORITHM, algorithms=[JWT_ALGORITHM])
-            
-            # Проверяем тип токена
+            payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
             token_type = payload.get("type")
             if token_type != expected_type:
                 return None
-            
-            # Проверяем expiration
+
             exp = payload.get("exp")
             if exp and datetime.fromtimestamp(exp) < datetime.utcnow():
                 return None
-            
+
             return payload
-            
         except JWTError:
-            return JWTError
+            return None
     
     @staticmethod
     def hash_password(password: str) -> str:

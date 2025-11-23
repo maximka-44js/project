@@ -28,6 +28,7 @@ services:
     environment:
       POSTGRES_HOST: postgres
       POSTGRES_PORT: 5432
+      STORAGE_DIR: /app/storage/uploads
     ports:
       - "8003:8003"
     depends_on:
@@ -39,12 +40,80 @@ services:
     volumes:
       - ./services/resume-service:/app
       - ./shared:/app/shared
+      - resume_storage:/app/storage
     env_file:
       - ./services/resume-service/.env
 
+  api-gateway:
+    build:
+      context: ./api-gateway
+      dockerfile: Dockerfile
+    container_name: api-gateway
+    ports:
+      - "8000:8000"
+    networks:
+      - api_gateway_network
+    restart: unless-stopped
+    volumes:
+      - ./api-gateway:/app
+      - ./shared:/app/shared
+  
+  user-service:
+    build:
+      context: .
+      dockerfile: ./services/user-service/Dockerfile
+    container_name: user-service
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+    ports:
+      - "8001:8001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - auth_api_network
+      - resume_dev_network  # добавлено для доступа к контейнеру postgres
+    restart: unless-stopped
+    volumes:
+      - ./services/user-service:/app
+      - ./shared:/app/shared
+  
+  # analysis-service:
+  #   build:
+  #     context: .
+  #     dockerfile: ./services/analysis-service/Dockerfile
+  #   container_name: analysis_service_dev
+  #   environment:
+  #     POSTGRES_HOST: postgres
+  #     POSTGRES_PORT: 5432
+  #     AUTO_CREATE_TABLES: "1"
+  #   ports:
+  #     - "8004:8004"
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #   networks:
+  #     - analysis_dev_network
+  #     - resume_dev_network
+  #   restart: unless-stopped
+  #   volumes:
+  #     - ./services/analysis-service:/app
+  #     - ./shared:/app/shared
+  #   env_file:
+  #     - ./services/analysis-service/.env
+
+    
 volumes:
   postgres_dev_data:
+  resume_storage:
 
 networks:
   resume_dev_network:
+    driver: bridge
+  api_gateway_network:
+    driver: bridge
+  auth_api_network:
+    driver: bridge
+  analysis_dev_network:
     driver: bridge

@@ -41,11 +41,12 @@ def create_app() -> FastAPI:
         except Exception as e:
             log.error(f"Error creating tables: {e}")
 
-    app.include_router(resumes_router, prefix="/api/v1/resumes")
+    # Endpoints exposed at root: /upload, /supported-formats, /{id}/content
+    app.include_router(resumes_router)
     return app
 
 app = create_app()
 
 
 if __name__ == "__main__":
-    uvicorn.run("app:app", host="0.0.0.0", port=8002, reload=True)
+    uvicorn.run("app:app", host="0.0.0.0", port=8003, reload=True)
