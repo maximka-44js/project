@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from shared.database import DatabaseManager
 from models.resume import ResumeFile
 from utils.validators import validate_extension, parse_file, ALLOWED_FORMATS
-from shared.auth import get_current_user_optional
+from shared.auth import get_current_user_optional, get_current_user
 
 SERVICE_NAME = "resumes"
 router = APIRouter()
@@ -89,4 +89,25 @@ def get_content(resume_id: uuid.UUID, db: Session = Depends(get_db)):
 		"file_type": resume.file_type,
 		"uploaded_at": resume.uploaded_at.isoformat(),
 		"text": resume.text_content,
+	}
+
+
+@router.get("/user/{user_id}")
+def get_user_resumes(
+	user_id: int,
+	db: Session = Depends(get_db),
+	current=Depends(get_current_user),
+):
+	if str(user_id) != str(current.id):
+		raise HTTPException(status_code=403, detail="Forbidden")
+	rows = (
+		db.query(ResumeFile)
+		.filter(ResumeFile.uid == user_id)
+		.order_by(ResumeFile.uploaded_at.desc())
+		.all()
+	)
+	return {
+		"data": [r.as_dict() for r in rows],
+		"count": len(rows),
+		"success": True,
 	}
