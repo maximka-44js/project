@@ -16,3 +16,4 @@ kombu
 scikit-learn
 pandas
 numpy
+catboost

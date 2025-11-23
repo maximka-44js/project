@@ -93,6 +93,7 @@ class RawTextAnalysisResult(BaseModel):
     extracted_data: ExtractedData
     profession_id: int
     salary_prediction: SalaryPrediction
+    recommendations: str
 
 
 class RawTextResponse(BaseModel):

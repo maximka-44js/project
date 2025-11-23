@@ -1,6 +1,11 @@
+import numpy as np
+import pandas as pd
+from catboost import CatBoostRegressor
+
+
 def get_salary_prediction(
     model_path: str,
-    vacancy_id: int,
+    vacancy_id: str,
     location: str,
     schedule: str,
     experience: str,
@@ -8,10 +13,11 @@ def get_salary_prediction(
     skills_text: str
 ) -> tuple[float, float]:
     """
-    Stub function for salary prediction.
+    Predicts salary range using CatBoost model.
 
     Args:
-        vacancy_nm (str): Vacancy name.
+        model_path (str): Path to the CatBoost model file.
+        vacancy_id (int): Vacancy ID (used as profession_id).
         location (str): Location.
         schedule (str): Work schedule.
         experience (str): Experience level.
@@ -21,6 +27,30 @@ def get_salary_prediction(
     Returns:
         tuple[float, float]: lowest_salary, highest_salary
     """
-    lowest_salary = 100000.0
-    highest_salary = 2500000.0
-    return lowest_salary, highest_salary
+    # Create feature dictionary
+    features = {
+        "location": location,
+        "schedule": schedule,
+        "experience": experience,
+        "work_hours": work_hours,
+        "profession_id": str(vacancy_id),
+        "skills_text": skills_text
+    }
+    
+    # Load the CatBoost model
+    model = CatBoostRegressor()
+    model.load_model(model_path)
+    
+    # Convert dictionary to DataFrame format that the model expects
+    X_one = pd.DataFrame([features])
+    
+    # Make prediction in log-scale
+    y_pred_log = model.predict(X_one)  # shape: (1, 2) for MultiRMSE
+    
+    # Convert back from log-scale to actual salary values
+    y_pred = np.expm1(y_pred_log)
+    
+    # Extract min and max salary from prediction
+    min_salary, max_salary = y_pred[0]
+    
+    return float(min_salary), float(max_salary)

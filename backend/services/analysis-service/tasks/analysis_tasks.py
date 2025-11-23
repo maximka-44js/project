@@ -7,13 +7,70 @@ from agents import Runner
 from flows.extract_agent import extr_agent
 from flows.get_proffession_id import get_profession_id
 from flows.get_salary_prediction import get_salary_prediction
+from openai import OpenAI
 
 log = logging.getLogger(__name__)
 
 TASKS_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_PATH = os.path.join(TASKS_DIR, 'data', 'professions.csv')
 MODEL_PATH = os.path.join(TASKS_DIR, 'models', 'vector_matcher.pkl')
+PREDICT_MODEL_PATH = os.path.join(TASKS_DIR, 'models', 'model_catboost_new_final.cbm')
 
+def get_resume_recommendations(resume_text: str, extracted_data: dict) -> str:
+    """
+    Получает рекомендации по улучшению резюме от OpenAI API.
+    
+    Args:
+        resume_text (str): Исходный текст резюме
+        extracted_data (dict): Извлеченные структурированные данные
+        
+    Returns:
+        str: Рекомендации по улучшению резюме
+    """
+    try:
+        client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+        
+        prompt = f"""
+Проанализируй следующее резюме и дай конкретные рекомендации по его улучшению:
+
+ИСХОДНЫЙ ТЕКСТ РЕЗЮМЕ:
+{resume_text}
+
+ИЗВЛЕЧЕННЫЕ ДАННЫЕ:
+- Вакансия: {extracted_data.get('vacancy_nm', 'Не указана')}
+- Локация: {extracted_data.get('location', 'Не указана')}
+- График работы: {extracted_data.get('schedule', 'Не указан')}
+- Опыт работы: {extracted_data.get('experience', 'Не указан')}
+- Часы работы: {extracted_data.get('work_hours', 'Не указано')}
+- Навыки: {extracted_data.get('skills_text', 'Не указаны')}
+
+Пожалуйста, предоставь конкретные рекомендации по улучшению этого резюме, сосредоточившись на:
+1. Структуре и форматировании
+2. Описании навыков и компетенций
+3. Опыте работы и достижениях
+4. Соответствии требованиям указанной вакансии
+5. Общих рекомендациях по повышению привлекательности для работодателей
+
+Отвечай на русском языке, кратко и по делу.
+"""
+
+        response = client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": "Ты эксперт по составлению резюме и рекрутингу. Дай конкретные и практичные советы по улучшению резюме."},
+                {"role": "user", "content": prompt}
+            ],
+            max_tokens=1000,
+            temperature=0.7
+        )
+        
+        recommendations = response.choices[0].message.content.strip()
+        log.info(f"Successfully got recommendations from OpenAI: {len(recommendations)} characters")
+        return recommendations
+        
+    except Exception as e:
+        log.error(f"Error getting recommendations from OpenAI: {e}")
+        return "Не удалось получить рекомендации. Проверьте настройки OpenAI API."
 
 @celery_app.task(bind=True)
 def process_raw_text_task(self, text: str):
@@ -105,7 +162,8 @@ def process_raw_text_task(self, text: str):
             log.info(f"  skills_text: {result.skills_text[:100] if result.skills_text else 'None'}...")
             
             lowest_salary, highest_salary = get_salary_prediction(
-                vacancy_id=profession_id,
+                model_path=PREDICT_MODEL_PATH,
+                vacancy_id=str(profession_id),
                 location=result.location,
                 schedule=result.schedule,
                 experience=result.experience,
@@ -121,6 +179,33 @@ def process_raw_text_task(self, text: str):
             log.error(f"Error message: {str(e)}")
             log.error(f"Full error details:", exc_info=True)
             raise
+        
+        # Шаг 4: Получаем рекомендации по улучшению резюме от OpenAI
+        log.info("=" * 50)
+        log.info("STEP 4: Getting resume recommendations from OpenAI")
+        log.info("=" * 50)
+        
+        try:
+            extracted_data_dict = {
+                "vacancy_nm": result.vacancy_nm,
+                "location": result.location,
+                "schedule": result.schedule,
+                "experience": result.experience,
+                "work_hours": result.work_hours,
+                "skills_text": result.skills_text
+            }
+            
+            log.info("Calling get_resume_recommendations...")
+            recommendations = get_resume_recommendations(text, extracted_data_dict)
+            log.info(f"STEP 4 SUCCESS: Got recommendations, length: {len(recommendations)} characters")
+            
+        except Exception as e:
+            log.error(f"STEP 4 FAILED: Error in get_resume_recommendations")
+            log.error(f"Error type: {type(e).__name__}")
+            log.error(f"Error message: {str(e)}")
+            log.error(f"Full error details:", exc_info=True)
+            # Не прерываем выполнение задачи, если не удалось получить рекомендации
+            recommendations = "Не удалось получить рекомендации по улучшению резюме."
         
         # Формируем результат
         log.info("=" * 50)
@@ -142,7 +227,8 @@ def process_raw_text_task(self, text: str):
                 "lowest_salary": lowest_salary,
                 "highest_salary": highest_salary,
                 "currency": "RUB"
-            }
+            },
+            "recommendations": recommendations
         }
         
         log.info(f"Task {self.request.id} completed successfully")
